@@ -27,6 +27,7 @@ load_dotenv()
 
 def get_openai_key() -> Optional[str]:
     key = None
+
     try:
         key = st.secrets.get("OPENAI_API_KEY")
     except Exception:
@@ -43,26 +44,21 @@ client = OpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 
 # =========================================================
-# SESSION
+# SESSION STATE
 # =========================================================
 
-if "radar_results" not in st.session_state:
-    st.session_state.radar_results = []
+DEFAULT_STATE = {
+    "radar_results": [],
+    "selected_repo": None,
+    "selected_analysis": None,
+    "founder_result": None,
+    "launch_pack": None,
+    "last_scan": None,
+}
 
-if "selected_repo" not in st.session_state:
-    st.session_state.selected_repo = None
-
-if "selected_analysis" not in st.session_state:
-    st.session_state.selected_analysis = None
-
-if "founder_result" not in st.session_state:
-    st.session_state.founder_result = None
-
-if "launch_pack" not in st.session_state:
-    st.session_state.launch_pack = None
-
-if "last_scan" not in st.session_state:
-    st.session_state.last_scan = None
+for key, value in DEFAULT_STATE.items():
+    if key not in st.session_state:
+        st.session_state[key] = value
 
 
 # =========================================================
@@ -80,15 +76,16 @@ html, body, [class*="css"] {
 
 .stApp {
     background:
-        radial-gradient(circle at top left, rgba(255, 214, 102, 0.22), transparent 25%),
-        radial-gradient(circle at top right, rgba(102, 190, 255, 0.22), transparent 28%),
-        linear-gradient(180deg, #F7F3EA 0%, #F8F5EF 45%, #FFFFFF 100%);
-    color: #121212;
+        radial-gradient(circle at top left, rgba(255, 221, 112, 0.24), transparent 24%),
+        radial-gradient(circle at top right, rgba(88, 186, 255, 0.25), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(99, 255, 211, 0.13), transparent 30%),
+        linear-gradient(180deg, #F7F3EA 0%, #FBF8F1 40%, #FFFFFF 100%);
+    color: #111111;
 }
 
 .block-container {
-    max-width: 1320px;
-    padding-top: 2.2rem;
+    max-width: 1360px;
+    padding-top: 2.1rem;
     padding-bottom: 5rem;
 }
 
@@ -98,7 +95,7 @@ html, body, [class*="css"] {
 }
 
 [data-testid="stSidebar"] * {
-    color: #F5F5F5;
+    color: #F6F6F6;
 }
 
 h1, h2, h3 {
@@ -113,13 +110,13 @@ h1, h2, h3 {
     color: #111111;
     font-weight: 900;
     background: linear-gradient(135deg, #FFE37A, #FFFFFF);
-    box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+    box-shadow: 0 14px 36px rgba(0,0,0,0.12);
 }
 
 .stButton > button:hover {
     color: #111111;
-    filter: brightness(1.03);
     border: 0;
+    filter: brightness(1.03);
 }
 
 .stDownloadButton > button {
@@ -128,7 +125,7 @@ h1, h2, h3 {
 }
 
 [data-testid="stMetric"] {
-    background: rgba(255,255,255,0.74);
+    background: rgba(255,255,255,0.76);
     border: 1px solid rgba(0,0,0,0.08);
     border-radius: 22px;
     padding: 16px;
@@ -141,7 +138,7 @@ h1, h2, h3 {
 }
 
 [data-testid="stMetricLabel"] {
-    color: #727272;
+    color: #686868;
     font-weight: 700;
 }
 
@@ -149,20 +146,20 @@ h1, h2, h3 {
     position: relative;
     overflow: hidden;
     padding: 46px 48px;
-    border-radius: 36px;
+    border-radius: 38px;
     background:
-        linear-gradient(135deg, rgba(255,255,255,0.82), rgba(255,255,255,0.38)),
-        radial-gradient(circle at 78% 38%, rgba(255,226,120,0.75), transparent 22%),
-        radial-gradient(circle at 95% 10%, rgba(110,195,255,0.35), transparent 28%);
+        linear-gradient(135deg, rgba(255,255,255,0.90), rgba(255,255,255,0.44)),
+        radial-gradient(circle at 82% 35%, rgba(255,226,120,0.72), transparent 22%),
+        radial-gradient(circle at 96% 10%, rgba(95,190,255,0.42), transparent 30%);
     border: 1px solid rgba(0,0,0,0.08);
-    box-shadow: 0 28px 90px rgba(0,0,0,0.10);
+    box-shadow: 0 34px 100px rgba(0,0,0,0.11);
     margin-bottom: 28px;
 }
 
 .hero-grid {
     display: grid;
-    grid-template-columns: 1.25fr 0.75fr;
-    gap: 34px;
+    grid-template-columns: 1.16fr 0.84fr;
+    gap: 36px;
     align-items: center;
 }
 
@@ -180,59 +177,88 @@ h1, h2, h3 {
 }
 
 .hero-title {
-    font-size: 60px;
+    font-size: 62px;
     line-height: 0.97;
     font-weight: 900;
     color: #111111;
-    letter-spacing: -0.075em;
+    letter-spacing: -0.078em;
     margin-bottom: 18px;
     max-width: 860px;
 }
 
 .hero-subtitle {
-    color: #4B4B4B;
+    color: #4F4F4F;
     font-size: 17px;
     line-height: 1.72;
-    max-width: 760px;
+    max-width: 770px;
     font-weight: 500;
 }
 
-.visual-card {
+.radar-visual {
     position: relative;
-    min-height: 330px;
+    min-height: 360px;
     border-radius: 34px;
     background:
-        linear-gradient(180deg, rgba(255,255,255,0.44), rgba(255,255,255,0.20)),
-        url("https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80");
-    background-size: cover;
-    background-position: center;
+        radial-gradient(circle at 25% 25%, rgba(255,227,122,.35), transparent 22%),
+        radial-gradient(circle at 80% 20%, rgba(74,210,255,.30), transparent 24%),
+        linear-gradient(135deg, #0E1118, #151924);
     border: 8px solid rgba(255,255,255,0.82);
-    box-shadow: 0 28px 70px rgba(0,0,0,0.18);
+    box-shadow: 0 30px 75px rgba(0,0,0,0.22);
     overflow: hidden;
 }
 
-.visual-overlay {
+.radar-visual:before {
+    content: "";
     position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(255,255,255,0.18), rgba(0,0,0,0.14));
+    inset: 24px;
+    border-radius: 28px;
+    border: 1px solid rgba(255,255,255,.10);
+    background:
+        linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+    background-size: 32px 32px;
 }
 
-.visual-pill {
+.node {
     position: absolute;
-    padding: 11px 14px;
+    padding: 10px 13px;
     border-radius: 999px;
-    background: rgba(255,255,255,0.82);
-    backdrop-filter: blur(18px);
-    border: 1px solid rgba(255,255,255,0.65);
+    background: rgba(255,255,255,.92);
     color: #111111;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 900;
-    box-shadow: 0 14px 35px rgba(0,0,0,0.12);
+    box-shadow: 0 16px 38px rgba(0,0,0,.20);
 }
 
-.pill-1 { left: 24px; bottom: 32px; }
-.pill-2 { right: 24px; bottom: 82px; }
-.pill-3 { right: 28px; top: 24px; }
+.node-a { left: 32px; top: 36px; }
+.node-b { right: 30px; top: 42px; }
+.node-c { left: 56px; bottom: 44px; }
+.node-d { right: 42px; bottom: 72px; }
+
+.terminal {
+    position: absolute;
+    left: 35px;
+    right: 35px;
+    top: 105px;
+    padding: 20px;
+    border-radius: 22px;
+    background: rgba(0,0,0,.54);
+    border: 1px solid rgba(255,255,255,.12);
+    color: #D6FFF3;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 1.72;
+}
+
+.scan-line {
+    position: absolute;
+    left: 30px;
+    right: 30px;
+    top: 52%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #63FFD3, transparent);
+    box-shadow: 0 0 24px #63FFD3;
+}
 
 .step-row {
     display: grid;
@@ -244,13 +270,13 @@ h1, h2, h3 {
 .step-card {
     padding: 22px;
     border-radius: 28px;
-    background: rgba(255,255,255,0.70);
+    background: rgba(255,255,255,0.74);
     border: 1px solid rgba(0,0,0,0.08);
     box-shadow: 0 18px 50px rgba(0,0,0,0.07);
 }
 
 .step-active {
-    background: linear-gradient(135deg, #111111, #2B2B2B);
+    background: linear-gradient(135deg, #111111, #2A2A2A);
     color: white;
 }
 
@@ -281,7 +307,7 @@ h1, h2, h3 {
 .panel {
     padding: 28px;
     border-radius: 32px;
-    background: rgba(255,255,255,0.74);
+    background: rgba(255,255,255,0.78);
     border: 1px solid rgba(0,0,0,0.08);
     box-shadow: 0 20px 70px rgba(0,0,0,0.07);
     margin-bottom: 22px;
@@ -290,7 +316,7 @@ h1, h2, h3 {
 .repo-card {
     padding: 26px;
     border-radius: 32px;
-    background: rgba(255,255,255,0.82);
+    background: rgba(255,255,255,0.86);
     border: 1px solid rgba(0,0,0,0.08);
     box-shadow: 0 20px 70px rgba(0,0,0,0.08);
     margin-bottom: 22px;
@@ -379,7 +405,7 @@ h1, h2, h3 {
 }
 
 .big-score {
-    font-size: 48px;
+    font-size: 50px;
     font-weight: 900;
     letter-spacing: -0.08em;
     line-height: 1;
@@ -398,7 +424,7 @@ h1, h2, h3 {
     border-radius: 22px;
     background: #111111;
     color: white;
-    font-weight: 700;
+    font-weight: 800;
     line-height: 1.55;
 }
 
@@ -466,9 +492,9 @@ BUSINESS_FOCUS_OPTIONS = [
 
 def tag_class(decision: str) -> str:
     d = str(decision).lower()
-    if "paylaş" in d or "evet" in d:
+    if "paylaş" in d or "evet" in d or "build" in d:
         return "tag tag-green"
-    if "beklet" in d or "şüpheli" in d:
+    if "beklet" in d or "şüpheli" in d or "validate" in d:
         return "tag tag-yellow"
     return "tag tag-red"
 
@@ -491,7 +517,6 @@ def extract_json(text: str) -> Dict[str, Any]:
         return {"_error": "Boş cevap döndü."}
 
     cleaned = text.strip()
-
     cleaned = cleaned.replace("```json", "").replace("```", "").strip()
 
     try:
@@ -512,7 +537,7 @@ def extract_json(text: str) -> Dict[str, Any]:
     }
 
 
-def call_ai_json(prompt: str, system: str, temperature: float = 0.55) -> Dict[str, Any]:
+def call_ai_json(prompt: str, system: str, temperature: float = 0.50) -> Dict[str, Any]:
     if not client:
         return {
             "_error": "OPENAI_API_KEY bulunamadı. Streamlit Secrets kısmına OPENAI_API_KEY ekle.",
@@ -549,12 +574,12 @@ def calculate_ooo_score(analysis: Dict[str, Any]) -> float:
     score = (
         money * 0.22
         + system * 0.18
-        + virality * 0.14
+        + virality * 0.12
         + timing * 0.16
-        + demand * 0.14
-        + ease * 0.10
+        + demand * 0.16
+        + ease * 0.12
         + mvp * 0.10
-        - difficulty * 0.04
+        - difficulty * 0.06
     )
 
     return round(max(0, min(10, score)), 1)
@@ -619,9 +644,9 @@ def flatten_radar_results(results: List[Dict[str, Any]]) -> pd.DataFrame:
             {
                 "OOO Score": item.get("ooo_score", 0),
                 "Repo": repo.get("name", "-"),
-                "Decision": analysis.get("share_decision", "-"),
-                "What to sell": analysis.get("what_to_sell", "-"),
-                "Buyer": analysis.get("who_buys", "-"),
+                "Decision": analysis.get("decision_gate", "-"),
+                "What to sell": analysis.get("smallest_sellable_system", "-"),
+                "Buyer": analysis.get("hidden_customer", "-"),
                 "Price": analysis.get("price_range", "-"),
                 "Business": business.get("name", "-"),
                 "URL": repo.get("url", "-"),
@@ -637,15 +662,32 @@ def flatten_radar_results(results: List[Dict[str, Any]]) -> pd.DataFrame:
 
 def analyze_repo(repo: Dict[str, Any], business_focus: str) -> Dict[str, Any]:
     system = """
-Sen OOOtomasyon Radar'ın ürün stratejistisin.
-Görevin GitHub repolarını açıklamak değil, onlardan gerçek fırsat çıkarmak.
-Gerektiğinde "Çöp" diyebilirsin.
-Türkçe, net, pratik ve iş modeli odaklı yaz.
-Cevabı sadece geçerli JSON olarak ver.
+Sen OOOtomasyon Radar'ın Repo Radar motorusun.
+
+Persona kombinasyonun:
+- VC gibi trend okursun.
+- Indie hacker gibi ilk para fırsatını görürsün.
+- Ajans sahibi gibi müşteri ve acı bulursun.
+- Creator gibi içerik açısı çıkarırsın.
+- Ürün yöneticisi gibi MVP tasarlarsın.
+
+Görevin repo açıklamak değil.
+Görevin bu repodan satılabilir, uygulanabilir, gerçek dünya fırsatı çıkarmak.
+
+Sert kurallar:
+- Her repodan SaaS çıkarma.
+- İş çıkmazsa açıkça "Ignore" veya "Content only" de.
+- Hype yapma.
+- "Otomasyon yapılabilir" gibi boş cümle kurma.
+- Hidden customer bul.
+- Smallest sellable system çıkar.
+- Proof of demand düşün.
+- Bad idea detector ekle.
+- Sadece JSON döndür.
 """
 
     prompt = f"""
-Aşağıdaki repo için profesyonel fırsat analizi yap.
+Aşağıdaki GitHub reposunu fırsat açısından analiz et.
 
 REPO:
 {json.dumps(repo, ensure_ascii=False, indent=2)}
@@ -653,17 +695,25 @@ REPO:
 İş odağı:
 {business_focus}
 
-Analiz mantığı:
-1. Bu repo ile gerçek hayatta ne satılır?
-2. Kim satın alır?
-3. 30 gün içinde ilk para nasıl gelir?
-4. İçerik üreticisi / ajans / solo founder için nasıl sistemleşir?
-5. Bu gerçekten fırsat mı, yoksa oyuncak mı?
+Çok derin düşün:
+1. Bu repo hangi trendin parçası?
+2. Neden şimdi önemli?
+3. Görünen kullanıcı kim?
+4. Gizli para ödeyecek müşteri kim?
+5. Bu acı bugün manuel olarak nasıl çözülüyor?
+6. Bu teknolojiden 7 günde satılabilecek en küçük sistem nedir?
+7. Hangi versiyonu zaman kaybı olur?
+8. Hangi versiyonu ilk para getirir?
+9. Bununla içerik mi üretilmeli, ürün mü yapılmalı, servis mi satılmalı?
 
 JSON FORMAT:
 {{
+  "decision_gate": "Build now / Validate first / Content only / Ignore",
   "share_decision": "Paylaş / Beklet / Çöp",
   "short_verdict": "tek cümlelik net karar",
+  "category_label": "içerik makinesi / lead sistemi / veri toplama / müşteri destek / creator aracı / başka",
+  "opportunity_type": "servis / template / micro SaaS / eğitim / ajans ürünü / content-only",
+  "market_state": "erken / kalabalık / teknik oyuncak / niş fırsat",
   "system_potential": 1,
   "money_potential": 1,
   "virality": 1,
@@ -673,10 +723,16 @@ JSON FORMAT:
   "ease_of_sale": 1,
   "mvp_speed": 1,
   "what_it_really_is": "repo aslında ne",
-  "why_interesting": "neden ilginç",
-  "what_to_sell": "bununla satılacak net şey",
+  "trend_it_belongs_to": "hangi büyük trendin parçası",
+  "why_now": "neden şimdi önemli, neden 6 ay sonra geç olabilir",
+  "visible_user": "görünen kullanıcı",
+  "hidden_customer": "gizli para ödeyecek müşteri",
+  "proof_of_demand": "bu acının gerçek olduğuna dair mantıklı kanıt",
+  "manual_workaround_today": "müşteriler bugün bunu manuel nasıl çözüyor",
+  "smallest_sellable_system": "7 günde satılabilecek en küçük sistem",
+  "what_to_sell": "satılacak net teklif",
   "who_buys": "kim satın alır",
-  "price_range": "fiyat aralığı",
+  "price_range": "gerçekçi fiyat aralığı",
   "business_idea": {{
     "name": "iş fikri adı",
     "one_liner": "tek cümle",
@@ -697,14 +753,28 @@ JSON FORMAT:
     "where_to_find": "nereden bulunur",
     "outreach_message": "kısa satış mesajı"
   }},
-  "30_day_money_plan": ["hafta 1", "hafta 2", "hafta 3", "hafta 4"],
-  "use_cases": [
-    {{"scenario": "senaryo 1", "example": "somut örnek"}},
-    {{"scenario": "senaryo 2", "example": "somut örnek"}},
-    {{"scenario": "senaryo 3", "example": "somut örnek"}}
+  "first_10_customer_profiles": [
+    {{"profile": "müşteri profili 1", "why_buy": "neden alır", "where": "nerede bulunur"}},
+    {{"profile": "müşteri profili 2", "why_buy": "neden alır", "where": "nerede bulunur"}},
+    {{"profile": "müşteri profili 3", "why_buy": "neden alır", "where": "nerede bulunur"}}
   ],
-  "risk": "en büyük risk",
-  "content_angles": ["içerik açısı 1", "içerik açısı 2", "içerik açısı 3", "içerik açısı 4"],
+  "30_day_money_plan": ["hafta 1", "hafta 2", "hafta 3", "hafta 4"],
+  "bad_idea_detector": {{
+    "why_it_fails": "neden başarısız olur",
+    "wrong_version": "hangi versiyonu zaman kaybı",
+    "right_version": "hangi versiyonu para eder"
+  }},
+  "content_angles": {{
+    "beginner": "başlangıç seviyesi içerik açısı",
+    "intermediate": "sistem kurma açısı",
+    "advanced": "iş modeli açısı"
+  }},
+  "demo_plan": {{
+    "first_5_seconds": "ekran kaydının ilk 5 saniyesi",
+    "what_to_show": "demoda gösterilecek şey",
+    "result_to_prove": "hangi sonucu kanıtlayacak"
+  }},
+  "one_next_action": "şimdi yapılacak tek aksiyon",
   "x_post": "insan gibi yazılmış, kısa ve vurucu X postu"
 }}
 """
@@ -717,10 +787,18 @@ JSON FORMAT:
 
 def run_founder_os(repo: Dict[str, Any], repo_analysis: Dict[str, Any], profile: Dict[str, str]) -> Dict[str, Any]:
     system = """
-Sen OOOtomasyon Radar'ın Founder OS stratejistisin.
-Görevin seçilen repoyu kullanıcının varlıklarına göre gerçek bir iş modeline çevirmek.
-Kullanıcıya 500 soru sorma. Mevcut repo + 3 kısa profil bilgisinden net plan çıkar.
-Türkçe yaz. Net, sert, uygulanabilir ol. Cevabı sadece geçerli JSON ver.
+Sen OOOtomasyon Radar'ın Founder OS motorusun.
+
+Persona kombinasyonun:
+- Operator gibi uygulanabilirlik düşünürsün.
+- Offer strategist gibi satılabilir paket çıkarırsın.
+- Realistic coach gibi boş motivasyon yapmazsın.
+- Growth strategist gibi ilk müşteri ve içerik kanalını düşünürsün.
+
+Görevin seçilen repoyu kullanıcının varlıklarıyla birleştirip gerçek iş modeline çevirmek.
+Kullanıcıya uzun form doldurtma. Mevcut repo + mevcut varlıklar üzerinden karar ver.
+
+Sadece JSON döndür.
 """
 
     prompt = f"""
@@ -733,13 +811,27 @@ Repo Radar analizi:
 Founder profili:
 {json.dumps(profile, ensure_ascii=False, indent=2)}
 
-Bu üç parçayı birleştirerek Founder OS analizi yap.
+Görev:
+Bu repo bu founder için gerçekten işe dönüşür mü?
+Dönüşürse nasıl paketlenir, nasıl satılır, ilk müşteri nasıl bulunur?
+
+Derin düşün:
+1. Bu founder'ın avantajı ne?
+2. Bu repo onun kitlesine nasıl anlatılır?
+3. İlk para hangi formatta gelir?
+4. Bu bir SaaS mı olmalı, template mi, done-for-you servis mi?
+5. Build etmeden önce nasıl satılır?
+6. İlk 7 günde ne yapılır?
+7. İlk 30 günde ne satılır?
+8. Hangi içerik serisi bu fırsatı satar?
 
 JSON FORMAT:
 {{
   "founder_fit_score": 1,
+  "should_build": "Build now / Validate first / Content only / Ignore",
   "positioning": "bu founder bu fırsatı nasıl konumlamalı",
   "main_warning": "en büyük hata riski",
+  "unfair_advantage": "founder'ın haksız avantajı",
   "best_business_model": {{
     "name": "iş modeli adı",
     "one_liner": "tek cümle",
@@ -751,12 +843,24 @@ JSON FORMAT:
     "first_customer_source": "ilk müşteri nereden bulunur",
     "outreach_message": "kısa satış mesajı"
   }},
-  "productized_offer": {{
-    "name": "ürünleştirilmiş teklif adı",
-    "promise": "müşteriye vaat",
+  "offer_builder": {{
+    "product_name": "ürün adı",
+    "promise": "tek cümlelik vaat",
+    "for_who": "kim için",
     "deliverables": ["çıktı 1", "çıktı 2", "çıktı 3"],
-    "setup_time": "kurulum süresi",
-    "price": "fiyat"
+    "delivery_time": "kaç günde teslim",
+    "price": "fiyat",
+    "risk_reversal": "garanti / risk azaltıcı vaat"
+  }},
+  "first_10_customers": [
+    {{"profile": "müşteri 1", "where": "nerede bulunur", "why_buy": "neden satın alır", "message": "mesaj"}},
+    {{"profile": "müşteri 2", "where": "nerede bulunur", "why_buy": "neden satın alır", "message": "mesaj"}},
+    {{"profile": "müşteri 3", "where": "nerede bulunur", "why_buy": "neden satın alır", "message": "mesaj"}}
+  ],
+  "validation_plan": {{
+    "before_building": "inşa etmeden önce yapılacak test",
+    "success_signal": "hangi sinyal validasyon sayılır",
+    "failure_signal": "hangi sinyal bırakmayı gerektirir"
   }},
   "first_7_days": ["gün 1", "gün 2", "gün 3", "gün 4", "gün 5", "gün 6", "gün 7"],
   "first_30_days": ["hafta 1", "hafta 2", "hafta 3", "hafta 4"],
@@ -765,29 +869,44 @@ JSON FORMAT:
     "content_pillars": ["kolon 1", "kolon 2", "kolon 3"],
     "next_7_posts": ["post 1", "post 2", "post 3", "post 4", "post 5", "post 6", "post 7"]
   }},
-  "should_build": "Evet / Hayır / Önce sat",
-  "final_verdict": "net karar"
+  "final_verdict": "net karar",
+  "one_next_action": "şimdi yapılacak tek aksiyon"
 }}
 """
 
     return call_ai_json(prompt, system)
 
 
-def generate_launch_pack(repo: Dict[str, Any], opportunity: Dict[str, Any]) -> Dict[str, Any]:
+def generate_launch_pack(repo: Dict[str, Any], founder_result: Dict[str, Any]) -> Dict[str, Any]:
     system = """
-Sen OOOtomasyon Radar'ın launch stratejistisin.
-Görevin seçilmiş fırsat için pazara çıkış paketi üretmek.
-Türkçe, kısa, net ve satılabilir yaz. Cevabı sadece geçerli JSON ver.
+Sen OOOtomasyon Radar'ın Launch Pack motorusun.
+
+Persona kombinasyonun:
+- Direct response copywriter
+- Demo strategist
+- Sales closer
+- Creator launch strategist
+
+Görevin seçilmiş fırsatı piyasaya çıkarmak için satış ve içerik paketi üretmek.
+Sadece JSON döndür.
 """
 
     prompt = f"""
 Repo:
 {json.dumps(repo, ensure_ascii=False, indent=2)}
 
-Founder OS / Opportunity:
-{json.dumps(opportunity, ensure_ascii=False, indent=2)}
+Founder OS sonucu:
+{json.dumps(founder_result, ensure_ascii=False, indent=2)}
 
 Bu fırsatı satmak için launch pack üret.
+
+Derin düşün:
+1. İnsan ilk 3 saniyede neden ilgilensin?
+2. Landing başlığı hangi acıya vurmalı?
+3. Demo hangi sonucu kanıtlamalı?
+4. DM mesajı nasıl satış gibi durmadan merak uyandırmalı?
+5. X thread hangi fikri satmalı?
+6. İtirazlara nasıl cevap verilmeli?
 
 JSON FORMAT:
 {{
@@ -798,7 +917,19 @@ JSON FORMAT:
   "cta": "CTA metni",
   "cold_dm": "kısa DM mesajı",
   "x_thread": ["tweet 1", "tweet 2", "tweet 3", "tweet 4", "tweet 5"],
-  "demo_script": "ekran kaydı demosunda ne anlatılacak",
+  "demo_script": {{
+    "hook": "ilk 5 saniye",
+    "screen_1": "ne gösterilecek",
+    "screen_2": "ne gösterilecek",
+    "proof": "hangi sonuç kanıtlanacak",
+    "cta": "kapanış"
+  }},
+  "objection_handling": [
+    {{"objection": "itiraz 1", "answer": "cevap"}},
+    {{"objection": "itiraz 2", "answer": "cevap"}},
+    {{"objection": "itiraz 3", "answer": "cevap"}}
+  ],
+  "48_hour_sales_plan": ["saat 1-6", "saat 6-12", "gün 1", "gün 2"],
   "validation_test": "inşa etmeden önce nasıl test edilir",
   "next_action": "şu an yapılacak tek sonraki adım"
 }}
@@ -824,11 +955,19 @@ def render_hero():
                 iş modeline çevirir ve sonunda launch için kullanabileceğin içerik + satış paketini üretir.
             </div>
         </div>
-        <div class="visual-card">
-            <div class="visual-overlay"></div>
-            <div class="visual-pill pill-1">🧠 Opportunity Score</div>
-            <div class="visual-pill pill-2">💸 First Customer</div>
-            <div class="visual-pill pill-3">🚀 Launch Pack</div>
+        <div class="radar-visual">
+            <div class="node node-a">github/search</div>
+            <div class="node node-b">opportunity score</div>
+            <div class="node node-c">hidden customer</div>
+            <div class="node node-d">launch pack</div>
+            <div class="terminal">
+                $ scan --category ai-agents<br>
+                found 24 repos<br>
+                analyzing market timing...<br>
+                hidden customer detected<br>
+                smallest sellable system ready
+            </div>
+            <div class="scan-line"></div>
         </div>
     </div>
 </div>
@@ -839,7 +978,7 @@ def render_hero():
 
 def render_stepbar(active: int):
     steps = [
-        ("🧲", "1. Repo Radar", "Önce yeni repolar taranır ve fırsat skoru çıkarılır."),
+        ("🧲", "1. Repo Radar", "Yeni repolar taranır, fırsat skoru ve hidden customer çıkarılır."),
         ("🧠", "2. Founder OS", "Seçilen repo senin varlıklarına göre iş modeline çevrilir."),
         ("🚀", "3. Launch Pack", "Satış mesajı, X thread, landing başlığı ve demo planı üretilir."),
     ]
@@ -866,15 +1005,39 @@ def render_error(error: str):
 
     if "AuthenticationError" in error or "Incorrect API key" in error or "invalid_api_key" in error:
         st.info(
-            "OpenAI key hatası. Streamlit Cloud > Manage app > Settings > Secrets içine "
-            '`OPENAI_API_KEY="sk-proj-..."` formatında ekle ve app’i reboot et.'
+            'OpenAI key hatası. Streamlit Cloud > Manage app > Settings > Secrets içine '
+            'OPENAI_API_KEY="sk-proj-..." formatında ekle ve app’i reboot et.'
         )
+
+
+def render_selected_summary():
+    repo = st.session_state.selected_repo
+    analysis = st.session_state.selected_analysis
+
+    if not repo or not analysis:
+        return
+
+    st.markdown('<div class="panel">', unsafe_allow_html=True)
+    st.markdown('<span class="tag tag-dark">✅ Seçilen fırsat</span>', unsafe_allow_html=True)
+    st.markdown(f'<div class="repo-title">{repo.get("name")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="repo-desc">{repo.get("description")}</div>', unsafe_allow_html=True)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("OOO Score", analysis.get("ooo_score", "-"))
+    c2.metric("Para", analysis.get("money_potential", 0))
+    c3.metric("Sistem", analysis.get("system_potential", 0))
+    c4.metric("Timing", analysis.get("market_timing", 0))
+
+    st.write("**Smallest sellable system:**", analysis.get("smallest_sellable_system", "-"))
+    st.write("**Hidden customer:**", analysis.get("hidden_customer", "-"))
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def render_repo_card(item: Dict[str, Any], index: int):
     repo = item["repo"]
     analysis = item["analysis"]
-    decision = analysis.get("share_decision", "-")
+    decision = analysis.get("decision_gate", "-")
     ooo_score = item.get("ooo_score", analysis.get("ooo_score", 0))
     business = analysis.get("business_idea", {})
     first_customer = analysis.get("first_customer", {})
@@ -890,8 +1053,9 @@ def render_repo_card(item: Dict[str, Any], index: int):
             f"""
 <span class="tag tag-dark">OOO Score {ooo_score}/10</span>
 <span class="{tag_class(decision)}">{decision}</span>
+<span class="tag">{analysis.get("category_label", "-")}</span>
+<span class="tag">{analysis.get("market_state", "-")}</span>
 <span class="tag">⭐ {repo.get("stars", 0)}</span>
-<span class="tag">Fork {repo.get("forks", 0)}</span>
 <span class="tag">{repo.get("language", "-")}</span>
 """,
             unsafe_allow_html=True,
@@ -911,7 +1075,7 @@ def render_repo_card(item: Dict[str, Any], index: int):
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Para", analysis.get("money_potential", 0))
     c2.metric("Sistem", analysis.get("system_potential", 0))
-    c3.metric("Viral", analysis.get("virality", 0))
+    c3.metric("Demand", analysis.get("demand", 0))
     c4.metric("Timing", analysis.get("market_timing", 0))
     c5.metric("Zorluk", analysis.get("difficulty", 0))
 
@@ -922,64 +1086,70 @@ def render_repo_card(item: Dict[str, Any], index: int):
 
     with a:
         st.markdown('<div class="inner-card">', unsafe_allow_html=True)
-        st.markdown("**Ne satılır?**")
-        st.write(analysis.get("what_to_sell", "-"))
+        st.markdown("**Smallest sellable system**")
+        st.write(analysis.get("smallest_sellable_system", "-"))
         st.markdown("**Fiyat**")
         st.write(analysis.get("price_range", "-"))
         st.markdown("</div>", unsafe_allow_html=True)
 
     with b:
         st.markdown('<div class="inner-card">', unsafe_allow_html=True)
-        st.markdown("**Kim satın alır?**")
-        st.write(analysis.get("who_buys", "-"))
-        st.markdown("**İlk müşteri**")
-        st.write(safe_get(first_customer, "who"))
+        st.markdown("**Hidden customer**")
+        st.write(analysis.get("hidden_customer", "-"))
+        st.markdown("**Nerede bulunur?**")
+        st.write(safe_get(first_customer, "where_to_find"))
         st.markdown("</div>", unsafe_allow_html=True)
 
     with c:
         st.markdown('<div class="inner-card">', unsafe_allow_html=True)
-        st.markdown("**İş fikri**")
-        st.write(safe_get(business, "name"))
-        st.markdown("**Model**")
-        st.write(safe_get(business, "delivery_model"))
+        st.markdown("**Bad idea detector**")
+        bad = analysis.get("bad_idea_detector", {})
+        st.write(safe_get(bad, "wrong_version"))
+        st.markdown("**Doğru versiyon**")
+        st.write(safe_get(bad, "right_version"))
         st.markdown("</div>", unsafe_allow_html=True)
 
-    with st.expander("Detaylı analiz"):
-        st.write("**Aslında ne?**", analysis.get("what_it_really_is", "-"))
-        st.write("**Neden ilginç?**", analysis.get("why_interesting", "-"))
-        st.write("**Risk:**", analysis.get("risk", "-"))
+    with st.expander("Why now / Proof of demand"):
+        st.write("**Trend:**", analysis.get("trend_it_belongs_to", "-"))
+        st.write("**Why now:**", analysis.get("why_now", "-"))
+        st.write("**Proof of demand:**", analysis.get("proof_of_demand", "-"))
+        st.write("**Manual workaround today:**", analysis.get("manual_workaround_today", "-"))
+
+    with st.expander("Sistem blueprint"):
+        blueprint = analysis.get("system_blueprint", {})
+        st.write("**Input:**", safe_get(blueprint, "input"))
+        st.write("**Process:**")
+        for step in blueprint.get("process", []):
+            st.write(f"• {step}")
+        st.write("**Output:**", safe_get(blueprint, "output"))
+        st.write("**MVP:**", safe_get(blueprint, "mvp"))
+
+    with st.expander("İlk 10 müşteri profili"):
+        for customer in analysis.get("first_10_customer_profiles", []):
+            st.write(f"**{customer.get('profile', '-')}**")
+            st.write(f"Neden alır: {customer.get('why_buy', '-')}")
+            st.write(f"Nerede bulunur: {customer.get('where', '-')}")
+            st.divider()
 
     with st.expander("30 günlük para planı"):
         for item in analysis.get("30_day_money_plan", []):
             st.write(f"• {item}")
 
-    with st.expander("X postu"):
+    with st.expander("Content angles"):
+        angles = analysis.get("content_angles", {})
+        st.write("**Beginner:**", safe_get(angles, "beginner"))
+        st.write("**Intermediate:**", safe_get(angles, "intermediate"))
+        st.write("**Advanced:**", safe_get(angles, "advanced"))
+
+    with st.expander("Demo plan + X postu"):
+        demo = analysis.get("demo_plan", {})
+        st.write("**İlk 5 saniye:**", safe_get(demo, "first_5_seconds"))
+        st.write("**Ne gösterilecek:**", safe_get(demo, "what_to_show"))
+        st.write("**Kanıtlanacak sonuç:**", safe_get(demo, "result_to_prove"))
         st.markdown(f'<div class="post-box">{analysis.get("x_post", "-")}</div>', unsafe_allow_html=True)
         st.code(analysis.get("x_post", "-"))
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-def render_selected_summary():
-    repo = st.session_state.selected_repo
-    analysis = st.session_state.selected_analysis
-
-    if not repo or not analysis:
-        return
-
-    st.markdown('<div class="panel">', unsafe_allow_html=True)
-    st.markdown('<span class="tag tag-dark">✅ Seçilen fırsat</span>', unsafe_allow_html=True)
-    st.markdown(f'<div class="repo-title">{repo.get("name")}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="repo-desc">{repo.get("description")}</div>', unsafe_allow_html=True)
-
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("OOO Score", analysis.get("ooo_score", "-"))
-    c2.metric("Para", analysis.get("money_potential", 0))
-    c3.metric("Sistem", analysis.get("system_potential", 0))
-    c4.metric("Zorluk", analysis.get("difficulty", 0))
-
-    st.write("**Ne satılır?**", analysis.get("what_to_sell", "-"))
-    st.write("**Kim satın alır?**", analysis.get("who_buys", "-"))
+    st.markdown('<div class="info-box">Next action: ' + str(analysis.get("one_next_action", "-")) + '</div>', unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1059,7 +1229,10 @@ if page.startswith("1"):
             "Radar GitHub’daki projeleri çeker, her birini iş fırsatı olarak analiz eder ve "
             "hangilerinin içerik / ürün / servis fikrine dönüşebileceğini skorlar."
         )
-        st.markdown('<div class="info-box">Çıktı: OOO Score, ne satılır, kim alır, ilk müşteri ve 30 günlük para planı.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="info-box">Çıktı: hidden customer, smallest sellable system, proof of demand, bad idea detector ve 30 günlük para planı.</div>',
+            unsafe_allow_html=True,
+        )
         st.markdown("</div>", unsafe_allow_html=True)
 
     if run_radar:
@@ -1227,7 +1400,8 @@ elif page.startswith("2"):
             st.divider()
 
             model = result.get("best_business_model", {})
-            product = result.get("productized_offer", {})
+            offer = result.get("offer_builder", {})
+            validation = result.get("validation_plan", {})
 
             c1, c2, c3 = st.columns(3)
 
@@ -1255,15 +1429,30 @@ elif page.startswith("2"):
                 st.write(safe_get(model, "delivery_model"))
                 st.markdown("</div>", unsafe_allow_html=True)
 
-            st.markdown('<div class="sub-title">Ürünleştirilmiş teklif</div>', unsafe_allow_html=True)
-            st.write("**Ad:**", safe_get(product, "name"))
-            st.write("**Vaat:**", safe_get(product, "promise"))
-            st.write("**Fiyat:**", safe_get(product, "price"))
-            st.write("**Kurulum süresi:**", safe_get(product, "setup_time"))
+            st.markdown('<div class="sub-title">Offer Builder</div>', unsafe_allow_html=True)
+            st.write("**Ürün adı:**", safe_get(offer, "product_name"))
+            st.write("**Vaat:**", safe_get(offer, "promise"))
+            st.write("**Kim için:**", safe_get(offer, "for_who"))
+            st.write("**Fiyat:**", safe_get(offer, "price"))
+            st.write("**Teslim süresi:**", safe_get(offer, "delivery_time"))
+            st.write("**Risk reversal:**", safe_get(offer, "risk_reversal"))
 
             with st.expander("Deliverables"):
-                for item in product.get("deliverables", []):
+                for item in offer.get("deliverables", []):
                     st.write(f"• {item}")
+
+            with st.expander("İlk 10 müşteri"):
+                for customer in result.get("first_10_customers", []):
+                    st.write(f"**{customer.get('profile', '-')}**")
+                    st.write(f"Nerede: {customer.get('where', '-')}")
+                    st.write(f"Neden alır: {customer.get('why_buy', '-')}")
+                    st.code(customer.get("message", "-"))
+                    st.divider()
+
+            with st.expander("Validation Plan"):
+                st.write("**Before building:**", safe_get(validation, "before_building"))
+                st.write("**Success signal:**", safe_get(validation, "success_signal"))
+                st.write("**Failure signal:**", safe_get(validation, "failure_signal"))
 
             with st.expander("İlk 7 gün"):
                 for item in result.get("first_7_days", []):
@@ -1276,16 +1465,14 @@ elif page.startswith("2"):
             with st.expander("İçerik stratejisi"):
                 content = result.get("content_strategy", {})
                 st.write("**Konumlanma:**", safe_get(content, "positioning_line"))
-
                 st.write("**İçerik kolonları:**")
                 for item in content.get("content_pillars", []):
                     st.write(f"• {item}")
-
                 st.write("**Sonraki 7 post:**")
                 for item in content.get("next_7_posts", []):
                     st.write(f"• {item}")
 
-            st.code(safe_get(model, "outreach_message"))
+            st.markdown('<div class="info-box">Next action: ' + str(result.get("one_next_action", "-")) + '</div>', unsafe_allow_html=True)
 
             st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1366,7 +1553,22 @@ else:
                     st.divider()
 
             with st.expander("Demo Script"):
-                st.write(launch.get("demo_script", "-"))
+                demo = launch.get("demo_script", {})
+                st.write("**Hook:**", safe_get(demo, "hook"))
+                st.write("**Screen 1:**", safe_get(demo, "screen_1"))
+                st.write("**Screen 2:**", safe_get(demo, "screen_2"))
+                st.write("**Proof:**", safe_get(demo, "proof"))
+                st.write("**CTA:**", safe_get(demo, "cta"))
+
+            with st.expander("Objection Handling"):
+                for item in launch.get("objection_handling", []):
+                    st.write(f"**{item.get('objection', '-')}**")
+                    st.write(item.get("answer", "-"))
+                    st.divider()
+
+            with st.expander("48 saatlik satış planı"):
+                for item in launch.get("48_hour_sales_plan", []):
+                    st.write(f"• {item}")
 
             st.download_button(
                 "Launch Pack JSON indir",
